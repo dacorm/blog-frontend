@@ -8,11 +8,11 @@ import 'easymde/dist/easymde.min.css';
 import styles from './AddPost.module.scss';
 import {useSelector} from "react-redux";
 import {selectIsAuth} from "../../redux/slices/auth";
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useParams } from 'react-router-dom';
 import axios from "../../axios";
 
 export const AddPost = () => {
-  // const imageUrl = '';
+  const { id } = useParams();
   const isAuth = useSelector(selectIsAuth);
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = React.useState(false);
@@ -21,6 +21,8 @@ export const AddPost = () => {
   const [tags, setTags] = React.useState('');
   const [imageUrl, setImageUrl] = React.useState('');
   const inputFileRef = React.useRef(null);
+
+  const isEditing = Boolean(id);
 
   const handleChangeFile = async (evt) => {
       try {
@@ -53,16 +55,27 @@ export const AddPost = () => {
               tags,
               text
           }
-          const { data } = await axios.post('/posts', fields);
+          const { data } = isEditing ? await axios.patch(`/posts/${id}`, fields) : await axios.post('/posts', fields);
 
-          const id = data._id;
+          const _id = isEditing ? id : data._id;
 
-          navigate(`/posts/${id}`);
+          navigate(`/posts/${_id}`);
       } catch (err) {
           console.warn(err);
           alert('Не удалось создать статью');
       }
-  }
+  };
+
+  React.useEffect(() => {
+      if (id) {
+          axios.get(`/posts/${id}`).then(({ data }) => {
+              setTitle(data.title);
+              setText(data.text);
+              setImageUrl(data.imageUrl);
+              setTags(data.tags.join(','));
+          })
+      }
+  }, [])
 
   const options = React.useMemo(
     () => ({
@@ -116,7 +129,7 @@ export const AddPost = () => {
       <SimpleMDE className={styles.editor} value={text} onChange={onChange} options={options} />
       <div className={styles.buttons}>
         <Button onClick={onSubmit} size="large" variant="contained">
-          Опубликовать
+            {isEditing ? 'Сохранить' : 'Опубликовать'}
         </Button>
         <a href="/">
           <Button size="large">Отмена</Button>
